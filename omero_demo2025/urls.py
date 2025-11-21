@@ -23,4 +23,8 @@ from . import views
 urlpatterns = [
     # index 'home page' of the app
     path("", views.index, name="omero_demo2025_index"),
+
+    # track the panning of images from iviewer
+    # Expect ?image=123 as GET parameter
+    path("tracker", views.tracker, name="demo_tracker"),
 ]

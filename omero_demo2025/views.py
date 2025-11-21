@@ -17,6 +17,7 @@
 #
 
 from django.shortcuts import render
+from django.http import Http404
 
 from omeroweb.decorators import login_required
 
@@ -41,3 +42,26 @@ def index(request, conn=None, **kwargs):
 
     # Render the html template and return the http response
     return render(request, "omero_demo2025/index.html", context)
+
+
+@login_required()
+def tracker(request, conn=None, **kwargs):
+    """Track panning of images from iviewer.
+
+    Expect ?image=123 as GET parameter
+    """
+    image_id = request.GET.get("image", None)
+    if image_id is None:
+        raise Http404("Use ?image=123 to specify image id")
+    image = conn.getObject("Image", image_id)
+    if image is None:
+        raise Http404(f"Image with id={image_id} not found")
+
+    context = {
+        "imageId": image_id,
+        "name": image.getName(),
+        "width": image.getSizeX(),
+        "height": image.getSizeY(),
+    }
+
+    return render(request, "omero_demo2025/tracker.html", context)

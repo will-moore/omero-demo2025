@@ -1,0 +1,75 @@
+
+<!--
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>OMERO tracker</title>
+
+        <!-- Include static css -->
+        <link rel="stylesheet" type="text/css" href="{% static 'omero_demo2025/app.css' %}" />
+    </head>
+        
+    <body>
+        <h1>Tracker</h1>
+        <p>Tracking image: {{ name }} (ID: {{ imageId }})</p>
+        
+        <div>
+            <canvas id="trackerCanvas" width="{{ width }}" height="{{ height }}" 
+                style="border:1px solid #000000;">
+                Your browser does not support the HTML5 canvas tag.
+            </canvas>
+        </div>
+
+        <script>
+            const MAX_DISPLAY_SIZE = 500;
+            // find max width and height from context
+            const imgWidth = {{ width }};
+            const imgHeight = {{ height }};
+            const imageId = {{ imageId }};
+            
+            const longestSide = Math.max(imgWidth, imgHeight);
+            const scale = (longestSide > MAX_DISPLAY_SIZE) ? MAX_DISPLAY_SIZE / longestSide : 1.0;
+
+            const canvas = document.getElementById("trackerCanvas");
+            canvas.width = imgWidth * scale;
+            canvas.height = imgHeight * scale;
+            const ctx = canvas.getContext("2d");
+
+            const bc = new BroadcastChannel('viewer.pan');
+            bc.onmessage = function (event) {
+                const data = event.data;
+                console.log('Received data:', data);
+                if (data.imageId === imageId) {
+                    let ext = data.extent;
+                    let x = ext.minX * scale;
+                    let y = ext.minY * scale;
+                    let width = (ext.maxX - ext.minX) * scale;
+                    let height = (ext.maxY - ext.minY) * scale;
+
+                    // let viewportSize = Math.max(data.size.width, data.size.height);
+                    let viewportWidth = data.size[0];
+                    let viewportZoom = viewportWidth / (ext.maxX - ext.minX);
+                    let opacity = 0.5 * viewportZoom;
+                    console.log(`opacity ${opacity}`);
+                    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
+                    ctx.fillRect(x, y, width, height);
+                }
+            };
+
+        </script>
+    </body>
+</html>
