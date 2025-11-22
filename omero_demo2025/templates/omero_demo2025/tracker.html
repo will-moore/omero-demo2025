@@ -45,7 +45,7 @@
         z-index: 1000;
       }
       canvas {
-        /* background: white; */
+        background: white;
       }
     </style>
   </head>
@@ -61,7 +61,7 @@
     </div>
 
     <div class="overlay">
-      <p>Tracking image: {{ name }} (ID: {{ imageId }})</p>
+      <!-- <p>Tracking image: {{ name }} (ID: {{ imageId }})</p> -->
       <button onclick="zoomCanvasToFit();">Zoom to fit</button>
       Zoom: <span id="zoom">100</span>
       <button onclick="zoomIn();">+</button>
@@ -110,55 +110,66 @@
         }
         updateZoomDisplay();
       }
-      function zoomIn() {
-        scale *= 2;
+
+      function updateScale() {
+        // Find the centre before scaling...
+        let centerX = (scrollFrame.scrollLeft + scrollFrame.clientWidth / 2) / canvas.clientWidth;
+        let centerY = (scrollFrame.scrollTop + scrollFrame.clientHeight / 2) / canvas.clientHeight;
+        // ...then scale the canvas
         canvas.style.width = imgWidth * scale + "px";
         canvas.style.height = imgHeight * scale + "px";
-        updateZoomDisplay();
-      }
-      function zoomOut() {
-        scale /= 2;
-        canvas.style.width = imgWidth * scale + "px";
-        canvas.style.height = imgHeight * scale + "px";
+        // ...and scroll to keep the same centre
+        let scrollX = centerX * canvas.clientWidth - scrollFrame.clientWidth / 2;
+        let scrollY = centerY * canvas.clientHeight - scrollFrame.clientHeight / 2;
+        scrollFrame.scrollTo(scrollX, scrollY);
+        // Update zoom display
         updateZoomDisplay();
       }
 
+      function zoomIn() {
+        scale *= 2;
+        updateScale();
+      }
+      function zoomOut() {
+        scale /= 2;
+        updateScale();
+      }
 
       // Initial zoom to fit
       zoomCanvasToFit();
 
       const bc = new BroadcastChannel('viewer.pan');
       bc.onmessage = function (event) {
-          const data = event.data;
-          console.log('Received data:', data);
-          if (data.imageId === imageId) {
-              let ext = data.extent;
-              let x = ext.minX * canvasScale;
-              let y = ext.minY * canvasScale;
-              let width = (ext.maxX - ext.minX) * canvasScale;
-              let height = (ext.minY - ext.maxY) * canvasScale;
+        const data = event.data;
+        console.log('Received data:', data);
+        if (data.imageId === imageId) {
+          let ext = data.extent;
+          let x = ext.minX * canvasScale;
+          let y = ext.minY * canvasScale;
+          let width = (ext.maxX - ext.minX) * canvasScale;
+          let height = (ext.minY - ext.maxY) * canvasScale;
 
-              // use iviewer viewport width to calculate zoom
-              let viewportWidth = data.size[0];
-              let viewportZoom = viewportWidth / (ext.maxX - ext.minX);
-              let opacity = 0.5 * viewportZoom;
-              console.log(`opacity ${opacity}`, x, y, width, height);
-              ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
-              ctx.fillRect(x, y, width, height);
+          // use iviewer viewport width to calculate zoom
+          let viewportWidth = data.size[0];
+          let viewportZoom = viewportWidth / (ext.maxX - ext.minX);
+          let opacity = 0.5 * viewportZoom;
+          console.log(`opacity ${opacity}`, x, y, width, height);
+          ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
+          ctx.fillRect(x, y, width, height);
 
-              // scroll the frame to show the rectangle in the center
-              // get current width of canvas in scroll frame
-              let canvasWidth = canvas.clientWidth;
-              let canvasHeight = canvas.clientHeight;
-              // relative position of rectangle center
-              let posX = ext.minX / imgWidth;
-              let posY = ext.minY / imgHeight;
-              // position in canvas
-              let canvasPosX = (posX * canvasWidth) - scrollFrame.clientWidth / 2;
-              let canvasPosY = (posY * canvasHeight) - scrollFrame.clientHeight / 2;
-              console.log(`canvasPos ${canvasPosX}, ${canvasPosY}`);
-              scrollFrame.scrollTo(canvasPosX, canvasPosY);
-          }
+          // scroll the frame to show the rectangle in the center
+          // get current width of canvas in scroll frame
+          let canvasWidth = canvas.clientWidth;
+          let canvasHeight = canvas.clientHeight;
+          // relative position of rectangle center
+          let posX = ext.minX / imgWidth;
+          let posY = ext.minY / imgHeight;
+          // position in canvas
+          let canvasPosX = (posX * canvasWidth) - scrollFrame.clientWidth / 2;
+          let canvasPosY = (posY * canvasHeight) - scrollFrame.clientHeight / 2;
+          console.log(`canvasPos ${canvasPosX}, ${canvasPosY}`);
+          scrollFrame.scrollTo(canvasPosX, canvasPosY);
+        }
       };
     </script>
   </body>
