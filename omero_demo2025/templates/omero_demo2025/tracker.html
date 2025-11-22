@@ -1,4 +1,3 @@
-
 <!--
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,60 +15,151 @@
 
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>OMERO tracker</title>
+  <head>
+    <title>OMERO tracker</title>
 
-        <!-- Include static css -->
-        <link rel="stylesheet" type="text/css" href="{% static 'omero_demo2025/app.css' %}" />
-    </head>
-        
-    <body>
-        <h1>Tracker</h1>
-        <p>Tracking image: {{ name }} (ID: {{ imageId }})</p>
-        
-        <div>
-            <canvas id="trackerCanvas" width="{{ width }}" height="{{ height }}" 
-                style="border:1px solid #000000;">
-                Your browser does not support the HTML5 canvas tag.
-            </canvas>
-        </div>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      p {
+        margin: 0;
+      }
+      #scroll_frame {
+        width: 100%;
+        height: 100vh;
+        overflow: scroll;
+        padding: 0;
+        margin: 0;
+        inset: 0;
+        background: #ddd;
+      }
+      .overlay {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 5px;
+        border: 1px solid #000;
+        z-index: 1000;
+      }
+      canvas {
+        /* background: white; */
+      }
+    </style>
+  </head>
 
-        <script>
-            const MAX_DISPLAY_SIZE = 500;
-            // find max width and height from context
-            const imgWidth = {{ width }};
-            const imgHeight = {{ height }};
-            const imageId = {{ imageId }};
-            
-            const longestSide = Math.max(imgWidth, imgHeight);
-            const scale = (longestSide > MAX_DISPLAY_SIZE) ? MAX_DISPLAY_SIZE / longestSide : 1.0;
+  <body>
+    <div id="scroll_frame">
+      <canvas
+        id="trackerCanvas"
+        width="{{ width }}"
+        height="{{ height }}"
+        style="border: 1px solid #000000"
+      ></canvas>
+    </div>
 
-            const canvas = document.getElementById("trackerCanvas");
-            canvas.width = imgWidth * scale;
-            canvas.height = imgHeight * scale;
-            const ctx = canvas.getContext("2d");
+    <div class="overlay">
+      <p>Tracking image: {{ name }} (ID: {{ imageId }})</p>
+      <button onclick="zoomCanvasToFit();">Zoom to fit</button>
+      Zoom: <span id="zoom">100</span>
+      <button onclick="zoomIn();">+</button>
+      <button onclick="zoomOut();">-</button>
+    </div>
 
-            const bc = new BroadcastChannel('viewer.pan');
-            bc.onmessage = function (event) {
-                const data = event.data;
-                console.log('Received data:', data);
-                if (data.imageId === imageId) {
-                    let ext = data.extent;
-                    let x = ext.minX * scale;
-                    let y = ext.minY * scale;
-                    let width = (ext.maxX - ext.minX) * scale;
-                    let height = (ext.maxY - ext.minY) * scale;
+    <script>
+      // Browser has canvas size limit: https://jhildenbiddle.github.io/canvas-size/#/
+      const CANVAS_MAX_SIZE = 10000;
 
-                    // let viewportSize = Math.max(data.size.width, data.size.height);
-                    let viewportWidth = data.size[0];
-                    let viewportZoom = viewportWidth / (ext.maxX - ext.minX);
-                    let opacity = 0.5 * viewportZoom;
-                    console.log(`opacity ${opacity}`);
-                    ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
-                    ctx.fillRect(x, y, width, height);
-                }
-            };
+      // find max width and height from context
+      const imgWidth = {{ width }};
+      const imgHeight = {{ height }};
+      const imageId = {{ imageId }};
 
-        </script>
-    </body>
+      const longestSide = Math.max(imgWidth, imgHeight);
+      const canvasScale = (longestSide > CANVAS_MAX_SIZE) ? CANVAS_MAX_SIZE / longestSide : 1.0;
+
+      // scale of the canvas within the scroll frame
+      let scale = 1;
+
+      const canvas = document.getElementById("trackerCanvas");
+      canvas.width = imgWidth * canvasScale;
+      canvas.height = imgHeight * canvasScale;
+      const ctx = canvas.getContext("2d");
+
+      function updateZoomDisplay() {
+        document.getElementById("zoom").innerText = (scale * 100).toFixed(0) + "%";
+      }
+
+      // Resize the canvas with css to fit the scroll frame
+      const scrollFrame = document.getElementById("scroll_frame");
+      function zoomCanvasToFit() {
+        const frameWidth = scrollFrame.clientWidth;
+        const frameHeight = scrollFrame.clientHeight;
+        if (imgWidth / imgHeight > frameWidth / frameHeight) {
+          // fit to width
+          scale = frameWidth / imgWidth;
+          canvas.style.width = frameWidth + "px";
+          canvas.style.height = imgHeight * scale + "px";
+        } else {
+          // fit to height
+          scale = frameHeight / imgHeight;
+          canvas.style.width = imgWidth * scale + "px";
+          canvas.style.height = frameHeight + "px";
+        }
+        updateZoomDisplay();
+      }
+      function zoomIn() {
+        scale *= 2;
+        canvas.style.width = imgWidth * scale + "px";
+        canvas.style.height = imgHeight * scale + "px";
+        updateZoomDisplay();
+      }
+      function zoomOut() {
+        scale /= 2;
+        canvas.style.width = imgWidth * scale + "px";
+        canvas.style.height = imgHeight * scale + "px";
+        updateZoomDisplay();
+      }
+
+
+      // Initial zoom to fit
+      zoomCanvasToFit();
+
+      const bc = new BroadcastChannel('viewer.pan');
+      bc.onmessage = function (event) {
+          const data = event.data;
+          console.log('Received data:', data);
+          if (data.imageId === imageId) {
+              let ext = data.extent;
+              let x = ext.minX * canvasScale;
+              let y = ext.minY * canvasScale;
+              let width = (ext.maxX - ext.minX) * canvasScale;
+              let height = (ext.minY - ext.maxY) * canvasScale;
+
+              // use iviewer viewport width to calculate zoom
+              let viewportWidth = data.size[0];
+              let viewportZoom = viewportWidth / (ext.maxX - ext.minX);
+              let opacity = 0.5 * viewportZoom;
+              console.log(`opacity ${opacity}`, x, y, width, height);
+              ctx.fillStyle = `rgba(255, 0, 0, ${opacity})`;
+              ctx.fillRect(x, y, width, height);
+
+              // scroll the frame to show the rectangle in the center
+              // get current width of canvas in scroll frame
+              let canvasWidth = canvas.clientWidth;
+              let canvasHeight = canvas.clientHeight;
+              // relative position of rectangle center
+              let posX = ext.minX / imgWidth;
+              let posY = ext.minY / imgHeight;
+              // position in canvas
+              let canvasPosX = (posX * canvasWidth) - scrollFrame.clientWidth / 2;
+              let canvasPosY = (posY * canvasHeight) - scrollFrame.clientHeight / 2;
+              console.log(`canvasPos ${canvasPosX}, ${canvasPosY}`);
+              scrollFrame.scrollTo(canvasPosX, canvasPosY);
+          }
+      };
+    </script>
+  </body>
 </html>
