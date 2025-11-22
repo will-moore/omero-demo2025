@@ -47,6 +47,12 @@
       canvas {
         background: white;
       }
+      .pan {
+        font-size: 40px;
+        margin: 0;
+        padding: 0;
+        line-height: 15px;
+      }
     </style>
   </head>
 
@@ -66,6 +72,11 @@
       Zoom: <span id="zoom">100</span>
       <button onclick="zoomIn();">+</button>
       <button onclick="zoomOut();">-</button>
+      Pan:
+      <button class="pan" onclick="pan('left');" style="transform: rotate(180deg);">&#8227;</button>
+      <button class="pan" onclick="pan('right');">&#8227;</button>
+      <button class="pan" onclick="pan('up');" style="transform: rotate(270deg);">&#8227;</button>
+      <button class="pan" onclick="pan('down');" style="transform: rotate(90deg);">&#8227;</button>
     </div>
 
     <script>
@@ -76,6 +87,8 @@
       const imgWidth = {{ width }};
       const imgHeight = {{ height }};
       const imageId = {{ imageId }};
+      // Keep track of current position (last known center from iviewer)
+      let currentExtent = null;
 
       const longestSide = Math.max(imgWidth, imgHeight);
       const canvasScale = (longestSide > CANVAS_MAX_SIZE) ? CANVAS_MAX_SIZE / longestSide : 1.0;
@@ -148,6 +161,8 @@
           let y = ext.minY * canvasScale;
           let width = (ext.maxX - ext.minX) * canvasScale;
           let height = (ext.minY - ext.maxY) * canvasScale;
+          // update last known center
+          currentExtent = {...ext};
 
           // use iviewer viewport width to calculate zoom
           let viewportWidth = data.size[0];
@@ -169,6 +184,45 @@
           let canvasPosY = (posY * canvasHeight) - scrollFrame.clientHeight / 2;
           console.log(`canvasPos ${canvasPosX}, ${canvasPosY}`);
           scrollFrame.scrollTo(canvasPosX, canvasPosY);
+        }
+      };
+
+
+      const bc_in = new BroadcastChannel('request.viewer.pan');
+
+      function pan(direction) {
+        console.log("Current extent:", currentExtent);
+        let extWidth = currentExtent.maxX - currentExtent.minX;
+        let extHeight = currentExtent.maxY - currentExtent.minY;
+        console.log("extWidth", extWidth);
+        let cx = currentExtent.minX + (extWidth / 2);
+        let cy = currentExtent.minY + (extHeight / 2);
+        if (direction === 'left') {
+          cx -= extWidth;
+        } else if (direction === 'right') {
+          cx += extWidth;
+        } else if (direction === 'up') {
+          cy += extHeight;
+        } else if (direction === 'down') {
+          cy -= extHeight;
+        }
+        console.log("Pan right requested", cx + extWidth, cy);
+        bc_in.postMessage({
+          imageId: imageId,
+          center: { x: cx, y: cy }
+        });
+      }
+
+      document.querySelector("body").onkeyup = function (e) {
+        e.preventDefault();
+        if (e.key === "ArrowLeft") {
+          pan('left');
+        } else if (e.key === "ArrowRight") {
+          pan('right');
+        } else if (e.key === "ArrowUp") {
+          pan('up');
+        } else if (e.key === "ArrowDown") {
+          pan('down');
         }
       };
     </script>
