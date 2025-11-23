@@ -47,12 +47,6 @@
       canvas {
         background: white;
       }
-      .pan {
-        font-size: 40px;
-        margin: 0;
-        padding: 0;
-        line-height: 15px;
-      }
     </style>
   </head>
 
@@ -73,11 +67,18 @@
       <button onclick="zoomIn();">+</button>
       <button onclick="zoomOut();">-</button>
       Pan:
-      <button class="pan" onclick="pan('left');" style="transform: rotate(180deg);">&#8227;</button>
-      <button class="pan" onclick="pan('right');">&#8227;</button>
-      <button class="pan" onclick="pan('up');" style="transform: rotate(270deg);">&#8227;</button>
-      <button class="pan" onclick="pan('down');" style="transform: rotate(90deg);">&#8227;</button>
-    </div>
+      <button class="pan" onclick="pan('left');">
+         &#60;
+      </button>
+      <button class="pan" onclick="pan('right');">
+        &#62;
+      </button>
+      <button class="pan" onclick="pan('up');">
+        &#8710;
+      </button>
+      <button class="pan" onclick="pan('down');">
+        &#8711;
+      </button>
 
     <script>
       // Browser has canvas size limit: https://jhildenbiddle.github.io/canvas-size/#/
@@ -158,7 +159,7 @@
         if (data.imageId === imageId) {
           let ext = data.extent;
           let x = ext.minX * canvasScale;
-          let y = ext.minY * canvasScale;
+          let y = ext.maxY * canvasScale;
           let width = (ext.maxX - ext.minX) * canvasScale;
           let height = (ext.minY - ext.maxY) * canvasScale;
           // update last known center
@@ -191,6 +192,7 @@
       const bc_in = new BroadcastChannel('request.viewer.pan');
 
       function pan(direction) {
+        console.log("PAN", direction);
         console.log("Current extent:", currentExtent);
         let extWidth = currentExtent.maxX - currentExtent.minX;
         let extHeight = currentExtent.maxY - currentExtent.minY;
@@ -206,7 +208,6 @@
         } else if (direction === 'down') {
           cy -= extHeight;
         }
-        console.log("Pan right requested", cx + extWidth, cy);
         bc_in.postMessage({
           imageId: imageId,
           center: { x: cx, y: cy }
